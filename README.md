@@ -200,6 +200,7 @@ Please cite using the following BibTeX entry:
 ```bash
 uv venv
 uv pip install -e .
+brew install libomp
 ```
 
 To get datasets under `tabular_completions.txt`:

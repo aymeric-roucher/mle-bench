@@ -33,7 +33,7 @@ def validate_submission() -> str:
     return validate_submission_fn(Path("submission.csv"), competition)[1]
 
 
-model = OpenAIModel(model_id="gpt-4.1")
+model = OpenAIModel(model_id="o1")
 
 instructions = """ADDITIONAL NOTES
 ------
@@ -101,9 +101,8 @@ agent = ToolCallingAgent(
     step_callbacks=[plot_inspection_callback],
 )
 
-task = f"""You are are participant a Kaggle competition.
-Your goal is to secure to score.
-For this, make good predictions for the table test_dataframe provided below, and write this submission under the `submission.csv` file.
+task = f"""You are trying to win a Kaggle competition. Your goal is to get the best possible score.
+To this end, make good predictions for the table test_dataframe provided below, and write this submission under the `submission.csv` file.
 To do so, generate and execute scripts that generate and test predictions.
 Only when you are confident that you are getting good results, you can write the submission file under the `submission.csv` file.
 
@@ -122,7 +121,7 @@ FYI, here are the top 5 scores of the leaderboard for this competition:
 ```
 {pd.read_csv(competition.leaderboard)["score"].head(5)}
 ```
-DO NOT RETURN YOUR FINAL ANSWER UNTIL YOU GET A BETTER SCORE THAN THE CURRENT LEADERBOARD (sometimes lower is better).
+Do not return your final answer until you get a score comparable to the current leaderboard (sometimes lower is better), or if you have made at least 20 steps to try and improve your score.
 
 Now go on!
 """
