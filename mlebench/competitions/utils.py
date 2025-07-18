@@ -47,7 +47,9 @@ def one_hot_dfs_to_log_loss_inputs(
     if id_column not in submission_one_hot.columns:
         raise InvalidSubmissionError(f"Submission is missing id column '{id_column}'.")
 
-    assert id_column in answers_one_hot.columns, f"Answers is missing id column '{id_column}'."
+    assert id_column in answers_one_hot.columns, (
+        f"Answers is missing id column '{id_column}'."
+    )
 
     # Filter submission to only include columns that are in the answers
     submission_filtered = submission_one_hot[
@@ -55,10 +57,14 @@ def one_hot_dfs_to_log_loss_inputs(
     ]
 
     # Sort submission and answers by id to align them
-    submission_sorted = submission_filtered.sort_values(by=id_column).reset_index(drop=True)
+    submission_sorted = submission_filtered.sort_values(by=id_column).reset_index(
+        drop=True
+    )
     answers_sorted = answers_one_hot.sort_values(by=id_column).reset_index(drop=True)
 
-    assert submission_sorted[id_column].tolist() == answers_sorted[id_column].tolist(), (
+    assert (
+        submission_sorted[id_column].tolist() == answers_sorted[id_column].tolist()
+    ), (
         f"Mismatch in {id_column.capitalize()}s between `submission` and `answers` after sorting. "
         f"Number of mismatched {id_column.capitalize()}s: {len(set(submission_sorted[id_column]) ^ set(answers_sorted[id_column]))}. "
         f"Ensure both DataFrames have the same {id_column.capitalize()}s."
@@ -119,21 +125,31 @@ def rle_decode(rle_string: str, height: int, width: int) -> ndarray:
         np.array: The decoded binary mask.
     """
 
-    assert isinstance(
-        rle_string, str
-    ), f"Expected a string, but got {type(rle_string)}: {rle_string}"
-    assert isinstance(height, int), f"Expected an integer, but got {type(height)}: {height}"
-    assert isinstance(width, int), f"Expected an integer, but got {type(width)}: {width}"
+    assert isinstance(rle_string, str), (
+        f"Expected a string, but got {type(rle_string)}: {rle_string}"
+    )
+    assert isinstance(height, int), (
+        f"Expected an integer, but got {type(height)}: {height}"
+    )
+    assert isinstance(width, int), (
+        f"Expected an integer, but got {type(width)}: {width}"
+    )
 
-    if not rle_string.strip():  # Check if the string is empty or contains only whitespace
+    if (
+        not rle_string.strip()
+    ):  # Check if the string is empty or contains only whitespace
         return np.zeros((height, width), dtype=bool)
 
     s = list(map(int, rle_string.split()))
     starts, lengths = s[0::2], s[1::2]
 
     assert starts == sorted(starts), "The pairs in the RLE string must be sorted."
-    assert all(x > 0 for x in starts), "All pairs in the RLE string must be positive integers."
-    assert all(x > 0 for x in lengths), "All pairs in the RLE string must be positive integers."
+    assert all(x > 0 for x in starts), (
+        "All pairs in the RLE string must be positive integers."
+    )
+    assert all(x > 0 for x in lengths), (
+        "All pairs in the RLE string must be positive integers."
+    )
 
     # Convert to 0-based indices
     starts = np.array(starts) - 1
@@ -174,13 +190,24 @@ def rles_to_masks(
     """
     masks = [
         rle_decode(encoding, height=image_height, width=image_width)
-        for encoding, image_height, image_width in zip(rl_encodings, image_heights, image_widths)
+        for encoding, image_height, image_width in zip(
+            rl_encodings, image_heights, image_widths
+        )
     ]
     return masks
 
 
-def get_ids_from_tf_records(tf_record_path: Path, id_feature: str = "image_name") -> list[str]:
-    import tensorflow as tf  # Import only if needed, otherwise it slows down the module import
+def get_ids_from_tf_records(
+    tf_record_path: Path, id_feature: str = "image_name"
+) -> list[str]:
+    try:
+        import tensorflow as tf  # noqa: F401  # Imported lazily to avoid mandatory dependency
+    except ModuleNotFoundError as exc:
+        raise ModuleNotFoundError(
+            "TensorFlow is required to read TFRecord files but is not installed. "
+            "Install the 'tensorflow' extra with: `pip install mlebench[tensorflow]` or "
+            "add TensorFlow to your environment."
+        ) from exc
 
     tf_record_dataset = tf.data.TFRecordDataset(tf_record_path.as_posix())
 
@@ -199,14 +226,17 @@ def prepare_for_accuracy_metric(
     target_column: str,
     id_column: str,
 ) -> dict:
-
     # Answers checks
-    assert target_column in answers.columns, f"Answers must have a `{target_column}` column"
+    assert target_column in answers.columns, (
+        f"Answers must have a `{target_column}` column"
+    )
     assert id_column in answers.columns, f"Answers must have a `{id_column}` column"
 
     # Submission checks
     if len(submission) != len(answers):
-        raise InvalidSubmissionError("Submission must have the same length as the answers.")
+        raise InvalidSubmissionError(
+            "Submission must have the same length as the answers."
+        )
     if target_column not in submission.columns:
         raise InvalidSubmissionError(f"Submission must have a `{target_column}` column")
     if id_column not in submission.columns:
@@ -217,7 +247,9 @@ def prepare_for_accuracy_metric(
     answers = answers.sort_values(id_column)
 
     if (submission[id_column].values != answers[id_column].values).any():
-        raise InvalidSubmissionError(f"Submission and Answers `{id_column}`'s do not match")
+        raise InvalidSubmissionError(
+            f"Submission and Answers `{id_column}`'s do not match"
+        )
 
     y_pred = submission[target_column].to_numpy()
     y_true = answers[target_column].to_numpy()
@@ -228,10 +260,13 @@ def prepare_for_accuracy_metric(
 def prepare_for_auroc_metric(
     submission: pd.DataFrame, answers: pd.DataFrame, id_col: str, target_col: str
 ) -> dict:
-
     # Answers checks
-    assert id_col in answers.columns, f"answers dataframe should have an {id_col} column"
-    assert target_col in answers.columns, f"answers dataframe should have a {target_col} column"
+    assert id_col in answers.columns, (
+        f"answers dataframe should have an {id_col} column"
+    )
+    assert target_col in answers.columns, (
+        f"answers dataframe should have a {target_col} column"
+    )
 
     # Submission checks
     if id_col not in submission.columns:
@@ -239,7 +274,9 @@ def prepare_for_auroc_metric(
     if target_col not in submission.columns:
         raise InvalidSubmissionError(f"Submission should have a {target_col} column")
     if len(submission) != len(answers):
-        raise InvalidSubmissionError(f"Submission and answers should have the same number of rows")
+        raise InvalidSubmissionError(
+            "Submission and answers should have the same number of rows"
+        )
     try:
         pd.to_numeric(submission[target_col])
     except ValueError:
@@ -256,7 +293,9 @@ def prepare_for_auroc_metric(
     answers = answers.sort_values(id_col)
 
     if (submission[id_col].values != answers[id_col].values).any():
-        raise InvalidSubmissionError(f"Submission and answers should have the same {id_col} values")
+        raise InvalidSubmissionError(
+            f"Submission and answers should have the same {id_col} values"
+        )
 
     roc_auc_inputs = {
         "y_true": answers[target_col].to_numpy(),
