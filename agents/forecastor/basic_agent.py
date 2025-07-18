@@ -16,7 +16,8 @@ from mlebench.registry import registry
 
 load_dotenv()
 
-competition = registry.get_competition("ventilator-pressure-prediction")
+competition_name = "tabular-playground-series-may-2022"
+competition = registry.get_competition(competition_name)
 
 train_dataframe = pd.read_csv(competition.public_dir / "train.csv")
 test_dataframe = pd.read_csv(competition.public_dir / "test.csv")
@@ -66,7 +67,8 @@ def write_and_execute_code(code: str) -> str:
             "seaborn.*",
             "scipy.*",
             "sklearn.*",
-            "lightgbm.*",
+            "xgboost.*",
+            # "lightgbm.*",
         ],
     )
     python_interpreter.send_tools(BASE_PYTHON_TOOLS)
