@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 import pandas as pd
@@ -23,7 +24,7 @@ test_dataframe = pd.read_csv(competition.public_dir / "test.csv")
 
 @tool
 def validate_submission() -> str:
-    """Checks that the submission is valid.
+    """Checks that the submission is valid. Beware that this only checks that the file works, not that the predictions are correct! You should score the predictions yourself using train/test splits.
 
     Args:
         submission: The path to the submission file.
@@ -40,8 +41,13 @@ instructions = """ADDITIONAL NOTES
 - **Total Steps**: You have a maximum of 500 steps to submit your solution.
 - You will be informed of the remaining time and steps at each step.
 - **Use as much of the available time as possible to refine and optimize your submission**: Your goal is to achieve the best possible score, not just to submit your first working solution.
-Therefore, while you are provided with a "final_answer" tool, you should not use it unless you are certain that no further improvements can be made. Consider strategies like validating your answer using the "Validate Submission" tool, manually spot-checking predictions, building custom validation sets and grading functions, and comparing different algorithms. You may keep working until the time limit expires -- as long as your best submission is stored at the designated location at the end of your run, it will be picked up for grading.
-You can generate plots of the data under file 'plot.png', then you will be able to view them
+Therefore, while you are provided with a "final_answer" tool, you should not use it unless you are certain that no further improvements can be made.
+Make sure to always:
+- validate your answer using the "Validate Submission" tool (this only checks validity of the files, not that predictions are correct)
+- manually spot-check predictions, building custom validation sets and grading functions
+- compare different algorithms.
+- generate plots of the data with matplotlib, export them under 'plot.png', then you will be able to view them.
+You may keep working until the time limit expires -- as long as your best submission is stored at the designated location at the end of your run, it will be picked up for grading.
 """
 
 
@@ -60,6 +66,7 @@ def write_and_execute_code(code: str) -> str:
             "seaborn.*",
             "scipy.*",
             "sklearn.*",
+            "lightgbm.*",
         ],
     )
     python_interpreter.send_tools(BASE_PYTHON_TOOLS)
@@ -70,15 +77,33 @@ def write_and_execute_code(code: str) -> str:
     return output.logs
 
 
+def plot_inspection_callback(memory_step, agent) -> str:
+    """
+    This callback is called after each step of the agent.
+    It will add the plot under "plot.png", if there is any, to the agent's memory.
+    """
+    if "write_and_execute_code" in str(memory_step.tool_calls) and "plot.png" in str(
+        memory_step.tool_calls
+    ):
+        if os.path.exists("plot.png"):
+            with open("plot.png", "rb") as f:
+                plot = f.read()
+                memory_step.observations_images = [plot]
+    return "Visualized plot.png"
+
+
 agent = ToolCallingAgent(
     model=model,
     tools=[validate_submission, write_and_execute_code],
     instructions=instructions,
+    step_callbacks=[plot_inspection_callback],
 )
 
-
-task = f"""You are given a Kaggle competition, your goal is to make predictions for the table test_dataframe provided below, and write this submission under the `submission.csv` file.
-To do so, generate and execute a full script that will produce the submission file.
+task = f"""You are are participant a Kaggle competition.
+Your goal is to secure to score.
+For this, make good predictions for the table test_dataframe provided below, and write this submission under the `submission.csv` file.
+To do so, generate and execute scripts that generate and test predictions.
+Only when you are confident that you are getting good results, you can write the submission file under the `submission.csv` file.
 
 # {competition.name}
 
@@ -86,11 +111,16 @@ To do so, generate and execute a full script that will produce the submission fi
 
 Sample submission file:
 ```csv
-{competition.sample_submission.read_text()[:1000]}
+{competition.sample_submission.read_text()[:500]}
 
 You can use the provided dataframe train_dataframe to train your model.
 ```
 
+FYI, here are the top 5 scores of the leaderboard for this competition:
+```
+{pd.read_csv(competition.leaderboard)["score"].head(5)}
+```
+DO NOT RETURN YOUR FINAL ANSWER UNTIL YOU GET A BETTER SCORE THAN THE CURRENT LEADERBOARD (sometimes lower is better).
 
 Now go on!
 """
